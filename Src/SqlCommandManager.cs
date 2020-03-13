@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -14,32 +11,38 @@ namespace System.Data.SqlClient.CommandManager
             get { return _connectionString; }
             protected set { _connectionString = value; }
         }
+
         public SqlCommandManager(string connectionString)
         {
             this._connectionString = connectionString;
         }
-        public virtual T GetScalar<T>(string commandString, params SqlParameter[] parameters)
+
+        public virtual T ExecuteScalar<T>(string commandString, params SqlParameter[] parameters)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand(commandString, connection))
                 {
+                    SetupExecuteScalarCommand(parameters, command);
                     return (T)command.ExecuteScalar();
                 }
             }
         }
-        public virtual async Task<T> GetScalarAsync<T>(string commandString, params SqlParameter[] parameters)
+
+        public virtual async Task<T> ExecuteScalarAsync<T>(string commandString, params SqlParameter[] parameters)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand(commandString, connection))
                 {
+                    SetupExecuteScalarCommand(parameters, command);
                     return (T)await command.ExecuteScalarAsync();
                 }
             }
         }
+
         public virtual int ExecuteNonQuery(string commandString, params SqlParameter[] parameters)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
@@ -55,6 +58,7 @@ namespace System.Data.SqlClient.CommandManager
                 }
             }
         }
+
         public virtual async Task<int> ExecuteNonQueryAsync(string commandString, params SqlParameter[] parameters)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
@@ -70,6 +74,7 @@ namespace System.Data.SqlClient.CommandManager
                 }
             }
         }
+
         /// <summary>
         /// Executes a Data Reader for the parameters provided.
         /// </summary>
@@ -83,7 +88,7 @@ namespace System.Data.SqlClient.CommandManager
                 {
                     SetupExecuteReaderCommand(parameters, command);
 
-                    using (SqlDataReader dataReader = command.ExecuteReader(System.Data.CommandBehavior.CloseConnection))
+                    using (SqlDataReader dataReader = command.ExecuteReader(CommandBehavior.CloseConnection))
                     {
                         result = reader(dataReader);
                     }
@@ -92,6 +97,7 @@ namespace System.Data.SqlClient.CommandManager
 
             return result;
         }
+
         /// <summary>
         /// Executes a Data Reader for the parameters provided.
         /// </summary>
@@ -113,26 +119,38 @@ namespace System.Data.SqlClient.CommandManager
             }
             return result;
         }
+
         /// <summary>
         /// Sets up the default fields for the Execute Reader Command.
         /// </summary>
-        protected virtual void SetupExecuteReaderCommand(SqlParameter[] parameters, SqlCommand command)
+        protected virtual void SetupExecuteScalarCommand(SqlParameter[] parameters, SqlCommand command)
         {
-            command.CommandType = System.Data.CommandType.StoredProcedure;
+            command.CommandType = CommandType.Text;
 
             command.Parameters.AddRange(parameters.Where(x => x != null).ToArray());
         }
+
+        /// <summary>
+        /// Sets up the default fields for the Execute Reader Command.
+        /// </summary>
+        protected virtual void SetupExecuteReaderCommand(SqlParameter[] parameters, SqlCommand command, CommandType commandType = CommandType.Text)
+        {
+            command.CommandType = commandType;
+
+            command.Parameters.AddRange(parameters.Where(x => x != null).ToArray());
+        }
+
         /// <summary>
         /// Sets up the default fields for the Execute Non Query Command.
         /// </summary>
-        protected virtual SqlParameter SetupExecuteNonQueryCommand(SqlParameter[] parameters, SqlCommand command)
+        protected virtual SqlParameter SetupExecuteNonQueryCommand(SqlParameter[] parameters, SqlCommand command, CommandType commandType = CommandType.Text)
         {
-            command.CommandType = System.Data.CommandType.StoredProcedure;
+            command.CommandType = commandType;
 
             SqlParameter returnParam = new SqlParameter();
-            returnParam.SqlDbType = System.Data.SqlDbType.Int;
+            returnParam.SqlDbType = SqlDbType.Int;
             returnParam.ParameterName = "@ReturnValue";
-            returnParam.Direction = System.Data.ParameterDirection.ReturnValue;
+            returnParam.Direction = ParameterDirection.ReturnValue;
 
             command.Parameters.Add(returnParam);
 
